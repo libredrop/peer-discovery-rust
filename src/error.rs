@@ -1,4 +1,5 @@
 use err_derive::Error;
+use async_std::io;
 use std::str::Utf8Error;
 
 #[derive(Debug, Error)]
@@ -26,6 +27,9 @@ pub enum Error {
     /// Deserialization error.
     #[error(display = "Failed to deserialize DiscoveryMsg from bytes: {}", _0)]
     Deserialize(DeserializeError),
+    /// Socket related I/O error.
+    #[error(display = "I/O failure: {}", _0)]
+    Io(io::Error),
 }
 
 impl From<DeserializeError> for Error {

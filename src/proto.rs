@@ -79,6 +79,11 @@ impl DiscoveryMsg {
         })
     }
 
+    /// Returns peer ID sent with this discovery message.
+    pub fn id(&self) -> [u8; 16] {
+        self.id
+    }
+
     /// `DiscoveryMsg` advertises the addresses peer is exposing its services on.
     /// This method allows to add new IP address to the list.
     ///
