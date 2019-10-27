@@ -1,14 +1,12 @@
 //! Peer discovery message related facilities: serialization/deserialization to/from binary data
 //! on a wire, etc.
 
+use crate::error::{DeserializeError, Error};
 use std::net::Ipv4Addr;
 use uuid::Uuid;
-use crate::error::{Error, DeserializeError};
-
 
 // Current protocol version.
 pub const VERSION: u8 = 1;
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -37,7 +35,10 @@ impl DiscoveryMsg {
     /// Random peer ID is generated.
     pub fn new(service_name: String, protocol: TransportProtocol, service_port: u16) -> Self {
         // TODO: use some value bounds checking attributes.
-        assert!(service_name.len() < 256, "Service name max length is 255 bytes.");
+        assert!(
+            service_name.len() < 256,
+            "Service name max length is 255 bytes."
+        );
 
         let id = Uuid::new_v4().as_bytes().clone();
         Self {
@@ -146,7 +147,12 @@ impl DiscoveryMsg {
 
 fn parse_id(buf: &[u8], pos: &mut usize) -> Result<[u8; 16], DeserializeError> {
     if buf.len() - *pos < 16 {
-        return Err(DeserializeError::NotEnoughBytes("id".into(), 16, buf.len() - *pos, *pos));
+        return Err(DeserializeError::NotEnoughBytes(
+            "id".into(),
+            16,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let mut id = [0u8; 16];
     id.copy_from_slice(&buf[*pos..*pos + 16]);
@@ -156,22 +162,40 @@ fn parse_id(buf: &[u8], pos: &mut usize) -> Result<[u8; 16], DeserializeError> {
 
 fn parse_service_name_len(buf: &[u8], pos: &mut usize) -> Result<usize, DeserializeError> {
     if buf.len() - *pos < 1 {
-        return Err(DeserializeError::NotEnoughBytes("service_name_len".into(), 1, buf.len() - *pos, *pos));
+        return Err(DeserializeError::NotEnoughBytes(
+            "service_name_len".into(),
+            1,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let service_name_len = usize::from(buf[*pos]);
     *pos += 1;
     Ok(service_name_len)
 }
 
-fn parse_service_name(buf: &[u8], pos: &mut usize, service_name_len: usize) -> Result<String, DeserializeError> {
+fn parse_service_name(
+    buf: &[u8],
+    pos: &mut usize,
+    service_name_len: usize,
+) -> Result<String, DeserializeError> {
     if *pos + service_name_len > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "service_name".into(), service_name_len, buf.len() - *pos, *pos));
+            "service_name".into(),
+            service_name_len,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
 
     let service_name = match String::from_utf8(buf[*pos..*pos + service_name_len].to_vec()) {
         Ok(service_name) => service_name,
-        Err(e) => return Err(DeserializeError::InvalidUtf8("service_name".into(), e.utf8_error())),
+        Err(e) => {
+            return Err(DeserializeError::InvalidUtf8(
+                "service_name".into(),
+                e.utf8_error(),
+            ))
+        }
     };
     *pos += service_name_len;
 
@@ -181,7 +205,11 @@ fn parse_service_name(buf: &[u8], pos: &mut usize, service_name_len: usize) -> R
 fn parse_protocol(buf: &[u8], pos: &mut usize) -> Result<TransportProtocol, DeserializeError> {
     if *pos + 1 > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "protocol".into(), 1, buf.len() - *pos, *pos));
+            "protocol".into(),
+            1,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let protocol = match buf[*pos] {
         0 => TransportProtocol::Tcp,
@@ -195,7 +223,11 @@ fn parse_protocol(buf: &[u8], pos: &mut usize) -> Result<TransportProtocol, Dese
 fn parse_service_port(buf: &[u8], pos: &mut usize) -> Result<u16, DeserializeError> {
     if *pos + 2 > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "service_port".into(), 2, buf.len() - *pos, *pos));
+            "service_port".into(),
+            2,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let service_port = u16::from_be_bytes([buf[*pos], buf[*pos + 1]]);
     *pos += 2;
@@ -205,7 +237,11 @@ fn parse_service_port(buf: &[u8], pos: &mut usize) -> Result<u16, DeserializeErr
 fn parse_ipv4_addrs(buf: &[u8], pos: &mut usize) -> Result<Vec<Ipv4Addr>, DeserializeError> {
     if *pos + 1 > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "ipv4_addrs_count".into(), 1, buf.len() - *pos, *pos));
+            "ipv4_addrs_count".into(),
+            1,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let ipv4_addrs_count = usize::from(buf[*pos]);
     *pos += 1;
@@ -214,7 +250,11 @@ fn parse_ipv4_addrs(buf: &[u8], pos: &mut usize) -> Result<Vec<Ipv4Addr>, Deseri
     for _ in 0..ipv4_addrs_count {
         if *pos + 4 > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
-                "ipv4_addr".into(), 4, buf.len() - *pos, *pos));
+                "ipv4_addr".into(),
+                4,
+                buf.len() - *pos,
+                *pos,
+            ));
         }
         let ip = Ipv4Addr::new(buf[*pos], buf[*pos + 1], buf[*pos + 2], buf[*pos + 3]);
         ipv4_addrs.push(ip);
@@ -226,7 +266,11 @@ fn parse_ipv4_addrs(buf: &[u8], pos: &mut usize) -> Result<Vec<Ipv4Addr>, Deseri
 fn parse_items_count(buf: &[u8], pos: &mut usize) -> Result<usize, DeserializeError> {
     if *pos + 1 > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "items_count".into(), 1, buf.len() - *pos, *pos));
+            "items_count".into(),
+            1,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let items_count = usize::from(buf[*pos]);
     *pos += 1;
@@ -234,10 +278,17 @@ fn parse_items_count(buf: &[u8], pos: &mut usize) -> Result<usize, DeserializeEr
 }
 
 fn parse_items_keys(
-        buf: &[u8], pos: &mut usize, items_count: usize) -> Result<Vec<String>, DeserializeError> {
+    buf: &[u8],
+    pos: &mut usize,
+    items_count: usize,
+) -> Result<Vec<String>, DeserializeError> {
     if *pos + items_count > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "keys_len".into(), items_count, buf.len() - *pos, *pos));
+            "keys_len".into(),
+            items_count,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let keys_len = &buf[*pos..*pos + items_count];
     *pos += items_count;
@@ -247,11 +298,20 @@ fn parse_items_keys(
         let key_len = usize::from(keys_len[i]);
         if *pos + key_len > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
-                "item key".into(), 1, buf.len() - *pos, *pos));
+                "item key".into(),
+                1,
+                buf.len() - *pos,
+                *pos,
+            ));
         }
         let key = match String::from_utf8(buf[*pos..*pos + key_len].to_vec()) {
             Ok(key) => key,
-            Err(e) => return Err(DeserializeError::InvalidUtf8("item key".into(), e.utf8_error())),
+            Err(e) => {
+                return Err(DeserializeError::InvalidUtf8(
+                    "item key".into(),
+                    e.utf8_error(),
+                ))
+            }
         };
         keys.push(key);
 
@@ -261,10 +321,17 @@ fn parse_items_keys(
 }
 
 fn parse_items_values(
-        buf: &[u8], pos: &mut usize, items_count: usize) -> Result<Vec<Vec<u8>>, DeserializeError> {
+    buf: &[u8],
+    pos: &mut usize,
+    items_count: usize,
+) -> Result<Vec<Vec<u8>>, DeserializeError> {
     if *pos + items_count > buf.len() {
         return Err(DeserializeError::NotEnoughBytes(
-            "items_len".into(), items_count, buf.len() - *pos, *pos));
+            "items_len".into(),
+            items_count,
+            buf.len() - *pos,
+            *pos,
+        ));
     }
     let values_len = &buf[*pos..*pos + items_count];
     *pos += items_count;
@@ -274,7 +341,11 @@ fn parse_items_values(
         let value_len = usize::from(values_len[i]);
         if *pos + value_len > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
-                "item value".into(), 1, buf.len() - *pos, *pos));
+                "item value".into(),
+                1,
+                buf.len() - *pos,
+                *pos,
+            ));
         }
         values.push(buf[*pos..*pos + value_len].to_vec());
         *pos += value_len;
@@ -285,8 +356,8 @@ fn parse_items_values(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use speculate::speculate;
     use proptest::prelude::*;
+    use speculate::speculate;
 
     macro_rules! expect_err {
         ($res:expr, $e:pat) => {
@@ -295,7 +366,7 @@ mod tests {
             } else {
                 panic!("Expected {}, got {:?}", stringify!($e), $res);
             }
-        }
+        };
     }
 
     speculate! {

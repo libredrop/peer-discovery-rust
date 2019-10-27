@@ -1,7 +1,7 @@
-mod proto;
 mod error;
+mod proto;
 mod udp;
 
-pub use proto::*;
 pub use error::*;
+pub use proto::*;
 pub use udp::discover_peers;

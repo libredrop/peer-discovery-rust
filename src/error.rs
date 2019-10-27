@@ -1,13 +1,19 @@
-use err_derive::Error;
 use async_std::io;
+use err_derive::Error;
 use std::str::Utf8Error;
 
 #[derive(Debug, Error)]
 /// `DiscoveryMsg` deserialization error.
 pub enum DeserializeError {
     /// Not enough bytes to parse some specific field.
-    #[error(display = "Not enough bytes to parse field '{}'. Expected {}, \
-      remaining {} at position {}.", _0, _1, _2, _3)]
+    #[error(
+        display = "Not enough bytes to parse field '{}'. Expected {}, \
+                   remaining {} at position {}.",
+        _0,
+        _1,
+        _2,
+        _3
+    )]
     NotEnoughBytes(String, usize, usize, usize),
     #[error(display = "Failed to parse UTF-8 field '{}'. Error: {}", _0, _1)]
     InvalidUtf8(String, Utf8Error),

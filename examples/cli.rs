@@ -2,11 +2,11 @@
 //! remote peers.
 //! You can use this example to test peer discovery on your LAN.
 
-use peer_discovery::{discover_peers, DiscoveryMsg, TransportProtocol};
-use unwrap::unwrap;
-use simple_logger;
+use futures::{future, StreamExt};
 use log;
-use futures::{StreamExt, future};
+use peer_discovery::{discover_peers, DiscoveryMsg, TransportProtocol};
+use simple_logger;
+use unwrap::unwrap;
 
 fn main() {
     unwrap!(simple_logger::init_with_level(log::Level::Info));
