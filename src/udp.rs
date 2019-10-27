@@ -76,7 +76,7 @@ async fn listen_for_udp(
         if msg.id() == my_id {
             continue;
         }
-        if let Err(_) = tx.unbounded_send(msg) {
+        if tx.unbounded_send(msg).is_err() {
             break;
         }
     }

@@ -40,7 +40,7 @@ impl DiscoveryMsg {
             "Service name max length is 255 bytes."
         );
 
-        let id = Uuid::new_v4().as_bytes().clone();
+        let id = *Uuid::new_v4().as_bytes();
         Self {
             version: VERSION,
             id,
@@ -294,8 +294,8 @@ fn parse_items_keys(
     *pos += items_count;
 
     let mut keys = Vec::with_capacity(items_count);
-    for i in 0..items_count {
-        let key_len = usize::from(keys_len[i]);
+    for key_len in keys_len {
+        let key_len = usize::from(*key_len);
         if *pos + key_len > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
                 "item key".into(),
@@ -337,8 +337,8 @@ fn parse_items_values(
     *pos += items_count;
 
     let mut values = Vec::with_capacity(items_count);
-    for i in 0..items_count {
-        let value_len = usize::from(values_len[i]);
+    for value_len in values_len {
+        let value_len = usize::from(*value_len);
         if *pos + value_len > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
                 "item value".into(),
