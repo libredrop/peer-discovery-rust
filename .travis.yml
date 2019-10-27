@@ -7,6 +7,8 @@ os:
   - osx
   - windows
 language: rust
+rust:
+  nightly-2019-10-25
 sudo: false
 cache:
   cargo: true
