@@ -537,8 +537,8 @@ mod tests {
 
                     let bytes = msg.to_bytes();
 
-                    assert!(bytes[26..30] == *"key1".as_bytes());
-                    assert!(bytes[30..35] == *"key_2".as_bytes());
+                    assert!(bytes[26..30] == *b"key1");
+                    assert!(bytes[30..35] == *b"key_2");
                 }
 
                 it "writes lengths of all data items" {
@@ -606,7 +606,7 @@ mod tests {
 
                 it "returns error when service name is not valid UTF-8" {
                     let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
-                        9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', 0b11000000, 0]);
+                        9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', 0b1100_0000, 0]);
 
                     expect_err!(res, Error::Deserialize(DeserializeError::InvalidUtf8(..)));
                 }
@@ -674,7 +674,7 @@ mod tests {
                 it "returns error when item key is not valid UTF-8" {
                     let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
                         9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', b'b', b'c', 1, 80, 0, 1, 1, 2, 3, 4,
-                        1, 3, b'a', 0b11000000, 0]);
+                        1, 3, b'a', 0b1100_0000, 0]);
 
                     expect_err!(res, Error::Deserialize(DeserializeError::InvalidUtf8(..)));
                 }
