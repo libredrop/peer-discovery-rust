@@ -3,7 +3,7 @@
 use async_std::io;
 use async_std::net::UdpSocket;
 use futures::channel::mpsc;
-use futures::executor;
+use futures::{executor, FutureExt, TryFutureExt};
 use futures_timer::Delay;
 use log::{error, info};
 use std::net::Ipv4Addr;
@@ -29,9 +29,12 @@ pub fn discover_peers(
         }
     });
 
-    executor
-        .run(broadcast_discovery_msg(msg))
-        .map_err(Error::Io)?;
+    // TODO(povilas): terminate listen_for_udp() when broadcast fails
+    executor.spawn_ok(
+        broadcast_discovery_msg(msg)
+            .map_err(|e| error!("Failed to broadcast discovery msgs: {}", e))
+            .map(|_| ()),
+    );
 
     Ok(rx)
 }
