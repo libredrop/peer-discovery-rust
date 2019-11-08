@@ -18,8 +18,11 @@ features = ["v4"]
 version = "0.7.4"
 
 [dev-dependencies]
-hamcrest2 = "0.2.6"
+hamcrest2 = "0.3.0"
 proptest = "0.9.4"
 speculate = "0.1.2"
 unwrap = "*"
 simple_logger = "1.3.0"
+serde = "1.0.102"
+serde_derive = "1.0.102"
+serde_yaml = "0.8.7"

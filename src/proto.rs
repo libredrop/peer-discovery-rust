@@ -1,6 +1,5 @@
 //! Peer discovery message related facilities: serialization/deserialization to/from binary data
 //! on a wire, etc.
-
 use crate::error::{DeserializeError, Error};
 use std::net::Ipv4Addr;
 use uuid::Uuid;
@@ -356,8 +355,13 @@ fn parse_items_values(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hamcrest2::prelude::*;
     use proptest::prelude::*;
+    use serde_derive::{Deserialize, Serialize};
+    use serde_yaml;
     use speculate::speculate;
+    use std::fs::File;
+    use unwrap::unwrap;
 
     macro_rules! expect_err {
         ($res:expr, $e:pat) => {
@@ -695,6 +699,85 @@ mod tests {
                     expect_err!(res, Error::Deserialize(DeserializeError::NotEnoughBytes(..)));
                 }
             }
+        }
+    }
+
+    fn parse_bytes(ln: &str) -> Vec<u8> {
+        ln.split('#')
+            .next()
+            .unwrap()
+            .trim()
+            .split(' ')
+            .map(|str_num| unwrap!(u8::from_str_radix(str_num, 16)))
+            .collect()
+    }
+
+    #[test]
+    fn parse_bytes_from_spec_line() {
+        let bytes = parse_bytes("01 02               # Version 03");
+        assert!(bytes == vec![1, 2]);
+
+        let bytes = parse_bytes("01 02    ");
+        assert!(bytes == vec![1, 2]);
+
+        let bytes = parse_bytes("01 02");
+        assert!(bytes == vec![1, 2]);
+
+        let bytes = parse_bytes("01 FF");
+        assert!(bytes == vec![1, 255]);
+    }
+
+    /// Yaml based tests from spec/testData
+    #[derive(Debug, Serialize, Deserialize)]
+    #[allow(non_snake_case)]
+    struct TestSpec {
+        serviceName: Option<String>,
+        port: u16,
+        uuid: String,
+        ip: Option<Vec<Ipv4Addr>>,
+        protocol: Option<String>,
+        result: String,
+    }
+
+    impl TestSpec {
+        fn bin_result(&self) -> Vec<u8> {
+            self.result
+                .split('\n')
+                .filter(|ln| !ln.is_empty())
+                .flat_map(|ln| parse_bytes(ln))
+                .collect()
+        }
+
+        fn make_discovery_msg(&self) -> DiscoveryMsg {
+            let mut msg = DiscoveryMsg::new("".to_string(), TransportProtocol::Tcp, self.port);
+            msg.id = *unwrap!(Uuid::parse_str(&self.uuid)).as_bytes();
+            if let Some(ref ips) = self.ip {
+                for ip in ips {
+                    assert!(msg.add_addrv4(*ip));
+                }
+            }
+            if let Some(ref service_name) = self.serviceName {
+                msg.service_name = service_name.clone();
+            }
+            if let Some(ref protocol) = self.protocol {
+                msg.protocol = match protocol.as_str() {
+                    "tcp" => TransportProtocol::Tcp,
+                    "udp" => TransportProtocol::Udp,
+                    proto => panic!("Unexpected protocol: {}", proto),
+                };
+            }
+            msg
+        }
+    }
+
+    #[test]
+    fn shared_serialization_specs() {
+        let specs = ["empty", "uuid", "service_name", "service_with_ip", "udp"];
+        for spec in specs.iter() {
+            let spec_file = unwrap!(File::open(format!("specs/testData/v01/{}.yml", spec)));
+            let spec: TestSpec = unwrap!(serde_yaml::from_reader(&spec_file));
+            let msg = spec.make_discovery_msg();
+            assert_that!(msg.to_bytes(), eq(spec.bin_result()));
         }
     }
 }
