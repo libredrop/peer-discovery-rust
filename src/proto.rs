@@ -690,44 +690,12 @@ mod tests {
                     expect_err!(res, Error::Deserialize(DeserializeError::NotEnoughBytes(..)));
                 }
 
-                it "returns error when not enough bytes for items keys length" {
-                    let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
-                        9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', b'b', b'c', 1, 80, 0, 1, 1, 2, 3, 4,
-                        2, 3]);
-
-                    expect_err!(res, Error::Deserialize(DeserializeError::NotEnoughBytes(..)));
-                }
-
-                it "returns error when not enough bytes for some item key" {
-                    let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
-                        9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', b'b', b'c', 1, 80, 0, 1, 1, 2, 3, 4,
-                        1, 3, b'a', b'b']);
-
-                    expect_err!(res, Error::Deserialize(DeserializeError::NotEnoughBytes(..)));
-                }
-
                 it "returns error when item key is not valid UTF-8" {
                     let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
                         9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', b'b', b'c', 1, 80, 0, 1, 1, 2, 3, 4,
                         1, 3, b'a', 0b1100_0000, 0]);
 
                     expect_err!(res, Error::Deserialize(DeserializeError::InvalidUtf8(..)));
-                }
-
-                it "returns error when not enough bytes for items values length" {
-                    let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
-                        9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', b'b', b'c', 1, 80, 0, 1, 1, 2, 3, 4,
-                        2, 1, 1, b'a', b'b', 1]);
-
-                    expect_err!(res, Error::Deserialize(DeserializeError::NotEnoughBytes(..)));
-                }
-
-                it "returns error when not enough bytes for items value vector" {
-                    let res = DiscoveryMsg::from_bytes(&[1, 1, 2, 3, 4, 5, 6, 7, 8,
-                        9, 10, 11, 12, 13, 14, 15, 16, 3, b'a', b'b', b'c', 1, 80, 0, 1, 1, 2, 3, 4,
-                        2, 1, 1, b'a', b'b', 1, 2, 0, 0]);
-
-                    expect_err!(res, Error::Deserialize(DeserializeError::NotEnoughBytes(..)));
                 }
             }
         }
