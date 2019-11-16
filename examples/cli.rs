@@ -10,11 +10,11 @@ use unwrap::unwrap;
 
 fn main() {
     unwrap!(simple_logger::init_with_level(log::Level::Info));
-    let mut executor = unwrap!(futures::executor::ThreadPool::new());
+    let mut executor = futures::executor::LocalPool::new();
 
     let msg = DiscoveryMsg::new("discovery-cli".into(), TransportProtocol::Tcp, 5000);
     let rx_msgs = unwrap!(discover_peers(&mut executor, msg));
-    executor.run(rx_msgs.for_each(|msg| {
+    executor.run_until(rx_msgs.for_each(|msg| {
         println!("Received: {:?}", msg);
         future::ready(())
     }));

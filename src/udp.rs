@@ -3,11 +3,13 @@
 use async_std::io;
 use async_std::net::UdpSocket;
 use futures::channel::mpsc;
+use futures::task::SpawnExt;
 use futures::{executor, future, FutureExt, TryFutureExt};
 use futures_timer::Delay;
 use log::{error, info};
 use std::net::Ipv4Addr;
 use std::time::Duration;
+use unwrap::unwrap;
 
 use crate::error::Error;
 use crate::proto::DiscoveryMsg;
@@ -22,7 +24,7 @@ const BEACON_EVERY_SECS: u64 = 3;
 /// Async receiver that yields peer discovery messages. All the info about remote
 /// peer is incoded in `DiscoveryMsg`.
 pub fn discover_peers(
-    executor: &mut executor::ThreadPool,
+    executor: &mut executor::LocalPool,
     msg: DiscoveryMsg,
 ) -> Result<mpsc::UnboundedReceiver<DiscoveryMsg>, Error> {
     let our_peer_id = msg.id();
@@ -32,7 +34,9 @@ pub fn discover_peers(
         listen_for_udp(our_peer_id, tx).map_err(|e| error!("Listener socket failed: {}", e));
     let broadcast = broadcast_discovery_msg(msg)
         .map_err(|e| error!("Failed to broadcast discovery msgs: {}", e));
-    executor.spawn_ok(future::try_join(listen, broadcast).map(|_| ()));
+    unwrap!(executor
+        .spawner()
+        .spawn(future::try_join(listen, broadcast).map(|_| ())));
 
     Ok(rx)
 }
