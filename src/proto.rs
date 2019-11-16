@@ -128,15 +128,11 @@ impl DiscoveryMsg {
         bytes.push(self.items.len() as u8);
         for (key, _) in &self.items {
             bytes.push(key.len() as u8);
-        }
-        for (key, _) in &self.items {
             bytes.extend_from_slice(key.as_bytes());
         }
 
         for (_, value) in &self.items {
             bytes.push(value.len() as u8);
-        }
-        for (_, value) in &self.items {
             bytes.extend_from_slice(value);
         }
 
@@ -276,29 +272,29 @@ fn parse_items_count(buf: &[u8], pos: &mut usize) -> Result<usize, DeserializeEr
     Ok(items_count)
 }
 
+/// Parses keys of arbitrary data encoded into a discovery message.
 fn parse_items_keys(
     buf: &[u8],
     pos: &mut usize,
     items_count: usize,
 ) -> Result<Vec<String>, DeserializeError> {
-    if *pos + items_count > buf.len() {
-        return Err(DeserializeError::NotEnoughBytes(
-            "keys_len".into(),
-            items_count,
-            buf.len() - *pos,
-            *pos,
-        ));
-    }
-    let keys_len = &buf[*pos..*pos + items_count];
-    *pos += items_count;
-
     let mut keys = Vec::with_capacity(items_count);
-    for key_len in keys_len {
-        let key_len = usize::from(*key_len);
+    for _ in 0..items_count {
+        if *pos + 1 > buf.len() {
+            return Err(DeserializeError::NotEnoughBytes(
+                "data_item.key_len".into(),
+                1,
+                buf.len() - *pos,
+                *pos,
+            ));
+        }
+        let key_len = usize::from(buf[*pos]);
+        *pos += 1;
+
         if *pos + key_len > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
-                "item key".into(),
-                1,
+                "data_item.key".into(),
+                key_len,
                 buf.len() - *pos,
                 *pos,
             ));
@@ -324,24 +320,23 @@ fn parse_items_values(
     pos: &mut usize,
     items_count: usize,
 ) -> Result<Vec<Vec<u8>>, DeserializeError> {
-    if *pos + items_count > buf.len() {
-        return Err(DeserializeError::NotEnoughBytes(
-            "items_len".into(),
-            items_count,
-            buf.len() - *pos,
-            *pos,
-        ));
-    }
-    let values_len = &buf[*pos..*pos + items_count];
-    *pos += items_count;
-
     let mut values = Vec::with_capacity(items_count);
-    for value_len in values_len {
-        let value_len = usize::from(*value_len);
+    for _ in 0..items_count {
+        if *pos + 1 > buf.len() {
+            return Err(DeserializeError::NotEnoughBytes(
+                "data_item.value_len".into(),
+                1,
+                buf.len() - *pos,
+                *pos,
+            ));
+        }
+        let value_len = usize::from(buf[*pos]);
+        *pos += 1;
+
         if *pos + value_len > buf.len() {
             return Err(DeserializeError::NotEnoughBytes(
-                "item value".into(),
-                1,
+                "data_item.value".into(),
+                value_len,
                 buf.len() - *pos,
                 *pos,
             ));
@@ -523,7 +518,7 @@ mod tests {
                     assert!(bytes[23] == 3);
                 }
 
-                it "writes lengths for all keys of data items" {
+                it "writes all keys prefixed with lengths of data items" {
                     let mut msg = DiscoveryMsg::new("s".to_string(), TransportProtocol::Tcp, 3000);
                     let _ = msg.add_data("key1".into(), vec![1, 2, 3]);
                     let _ = msg.add_data("key_2".into(), vec![2, 3, 4]);
@@ -531,21 +526,12 @@ mod tests {
                     let bytes = msg.to_bytes();
 
                     assert!(bytes[24] == 4);
-                    assert!(bytes[25] == 5);
-                }
-
-                it "writes all keys of data items" {
-                    let mut msg = DiscoveryMsg::new("s".to_string(), TransportProtocol::Tcp, 3000);
-                    let _ = msg.add_data("key1".into(), vec![1, 2, 3]);
-                    let _ = msg.add_data("key_2".into(), vec![2, 3, 4]);
-
-                    let bytes = msg.to_bytes();
-
-                    assert!(bytes[26..30] == *b"key1");
+                    assert!(bytes[25..29] == *b"key1");
+                    assert!(bytes[29] == 5);
                     assert!(bytes[30..35] == *b"key_2");
                 }
 
-                it "writes lengths of all data items" {
+                it "writes all values prefixed with their lengths of data items" {
                     let mut msg = DiscoveryMsg::new("s".to_string(), TransportProtocol::Tcp, 3000);
                     let _ = msg.add_data("key1".into(), vec![1, 2]);
                     let _ = msg.add_data("key_2".into(), vec![2, 3, 4]);
@@ -553,18 +539,63 @@ mod tests {
                     let bytes = msg.to_bytes();
 
                     assert!(bytes[35] == 2);
-                    assert!(bytes[36] == 3);
+                    assert!(bytes[36..38] == [1, 2]);
+                    assert!(bytes[38] == 3);
+                    assert!(bytes[39..42] == [2, 3, 4]);
+                }
+            }
+
+            describe "parse_items_keys" {
+                it "returns error when not enough bytes for key length" {
+                    let mut pos: usize = 0;
+
+                    let res = parse_items_keys(&[], &mut pos, 1);
+
+                    expect_err!(res, DeserializeError::NotEnoughBytes(..));
                 }
 
-                it "writes all values of data items" {
-                    let mut msg = DiscoveryMsg::new("s".to_string(), TransportProtocol::Tcp, 3000);
-                    let _ = msg.add_data("key1".into(), vec![1, 2]);
-                    let _ = msg.add_data("key_2".into(), vec![2, 3, 4]);
+                it "returns error when not enough bytes for key content" {
+                    let data = b"\x04key";
+                    let mut pos: usize = 0;
 
-                    let bytes = msg.to_bytes();
+                    let res = parse_items_keys(data, &mut pos, 1);
 
-                    assert!(bytes[37..39] == [1, 2]);
-                    assert!(bytes[39..42] == [2, 3, 4]);
+                    expect_err!(res, DeserializeError::NotEnoughBytes(..));
+                }
+
+                it "parses UTF-8 encoded key values of arbitrary data" {
+                    let data = b"\x04key1\x05key_2";
+                    let mut pos: usize = 0;
+
+                    let keys = unwrap!(parse_items_keys(data, &mut pos, 2));
+                    assert_that!(keys, eq(vec!["key1".to_string(), "key_2".to_string()]));
+                }
+            }
+
+            describe "parse_items_values" {
+                it "returns error when not enough bytes for value length" {
+                    let mut pos: usize = 0;
+
+                    let res = parse_items_values(&[], &mut pos, 1);
+
+                    expect_err!(res, DeserializeError::NotEnoughBytes(..));
+                }
+
+                it "returns error when not enough bytes for value content" {
+                    let data = b"\x06value";
+                    let mut pos: usize = 0;
+
+                    let res = parse_items_values(data, &mut pos, 1);
+
+                    expect_err!(res, DeserializeError::NotEnoughBytes(..));
+                }
+
+                it "parses arbitrary data values" {
+                    let data = b"\x06value1\x07value_2";
+                    let mut pos: usize = 0;
+
+                    let values = unwrap!(parse_items_values(data, &mut pos, 2));
+                    assert_that!(values, eq(vec![b"value1".to_vec(), b"value_2".to_vec()]));
                 }
             }
 
