@@ -16,7 +16,7 @@ pub enum TransportProtocol {
 
 /// Peer discovery message broadcasted via LAN so that others could find the service we are
 /// exposing.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DiscoveryMsg {
     // Protocol version.
     version: u8,
@@ -82,6 +82,14 @@ impl DiscoveryMsg {
     /// Returns peer ID sent with this discovery message.
     pub fn id(&self) -> [u8; 16] {
         self.id
+    }
+
+    pub fn addrsv4(&self) -> &Vec<Ipv4Addr> {
+        &self.ipv4_addrs
+    }
+
+    pub fn service_port(&self) -> u16 {
+        self.service_port
     }
 
     /// `DiscoveryMsg` advertises the addresses peer is exposing its services on.
