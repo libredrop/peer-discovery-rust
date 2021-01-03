@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::{future, FutureExt, TryFutureExt};
 use futures_timer::Delay;
 use log::{error, info};
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
 use crate::error::Error;
@@ -62,7 +62,13 @@ async fn listen_for_udp(
     loop {
         let (bytes_read, from_peer) = socket.recv_from(&mut buf).await?;
         let msg = match DiscoveryMsg::from_bytes(&buf[0..bytes_read]) {
-            Ok(msg) => msg,
+            Ok(mut msg) => {
+                if let IpAddr::V4(addrv4) = from_peer.ip() {
+                    msg.add_addrv4(addrv4);
+                }
+
+                msg
+            }
             Err(e) => {
                 info!(
                     "Invalid discovery message received: {}, from: {}",
