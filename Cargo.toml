@@ -6,7 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 async-std = "1.0.1"
-err-derive = "0.1.5"
+err-derive = "0.3.0"
 futures-timer = "0.4.0"
 log = "0.4.8"
 unwrap = "1.2.1"
