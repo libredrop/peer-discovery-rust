@@ -118,6 +118,10 @@ impl DiscoveryMsg {
         Ok(())
     }
 
+    pub fn get_data(&self, key: &str) -> Option<&Vec<u8>> {
+        self.items.iter().find(|item| item.0.as_str() == key).map(|item| &item.1)
+    }
+
     /// Serializes discovery message to `peer-discovery` binary format.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(1 + self.id.len() + 1 + self.service_name.len() + 2);
@@ -415,6 +419,14 @@ mod tests {
                     let res = msg.add_data(key, vec![1, 2, 3]);
 
                     assert!(res.is_err());
+                }
+
+                it "adds arbitrary data to the discovery message" {
+                    let mut msg = DiscoveryMsg::new("service1".to_string(), TransportProtocol::Tcp, 3000);
+
+                    unwrap!(msg.add_data("file_body".to_string(), vec![1, 2, 3]));
+
+                    assert_eq!(msg.get_data("file_body"), Some(&vec![1, 2, 3]))
                 }
 
                 it "returns error when message already has 255 data items" {
